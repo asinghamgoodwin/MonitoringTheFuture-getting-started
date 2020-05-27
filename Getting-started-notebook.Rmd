@@ -28,7 +28,6 @@ knitr::kable(df2[1:5,1:8])
 
 Specifically: lifetime prevalence of use of a handful of different substances among all grades combined, for 2016-2018 (highlighted below).
 
-![Table 1](images/Table1.png)
 ## Step 1: get core data from all 3 years and grades into 1 table
 
 I'll keep the cigarette, vaping, and alcohol indicators for "ever used" (lifetime prevalence) as well as "last 30 days": 
@@ -129,7 +128,6 @@ summary(combined[, c(2, 3, 4, 5, 6, 17, 18)])
 
 Specifically, I'd like to make [this view](https://public.tableau.com/shared/JF2B545PM?:display_count=y&:origin=viz_share_link&:embed=y), showing 8th, 10th, and 12th grade trends in past-30-day alcohol use and vaping, from 2016-2018.
 
-![Trend graphs](images/TableauTrends.png)
 
 # Goal #3: Use information from across multiple forms
 
