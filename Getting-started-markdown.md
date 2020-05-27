@@ -43,11 +43,14 @@ substances among all grades combined, for 2016-2018 (highlighted below).
 ## Step 1: get core data from all 3 years and grades into 1 table
 
 I’ll keep the cigarette, vaping, and alcohol indicators for “ever used”
-(lifetime prevalence) as well as “last 30
-days”:
+(lifetime prevalence) as well as “last 30 days”:
+
+<details>
+
+<summary>Twelth grade, core form, 2016-2018 (click to see
+code)</summary>
 
 ``` r
-# Question: what do I do if the thing I'm looking for isn't in that year's form?
 twelve_core = function(year) {
   path = paste("data/12th-grade-2016-2018/y", year, "_1.sas7bdat", sep = "")
   
@@ -107,12 +110,12 @@ twelve_core = function(year) {
           ) %>% 
       mutate(.,
            vape_ever = recode_factor(vape_ever, "1" = "No", "-9" = NA_character_, .default = "Yes"),
-           vape_nic_lifetime = NA_character_,
-           vape_nic_month = NA_character_,
-           vape_mj_lifetime = NA_character_,
-           vape_mj_month = NA_character_,
-           vape_flav_lifetime = NA_character_,
-           vape_flav_month = NA_character_,
+           vape_nic_lifetime = as.factor(NA),
+           vape_nic_month = as.factor(NA),
+           vape_mj_lifetime = as.factor(NA),
+           vape_mj_month = as.factor(NA),
+           vape_flav_lifetime = as.factor(NA),
+           vape_flav_month = as.factor(NA),
            vape_any_month = recode_factor(vape_any_month, "1" = "No", "-9" = NA_character_, .default = "Yes")
            )
   }
@@ -121,43 +124,41 @@ twelve_core = function(year) {
   output
 }
 
-
-# combine these together into full dataset - later add in other years
 combined = tibble()
 for (year in 2016:2018) {
-  combined = bind_rows(combined, twelve_core(year))
+  # need to sort alphabetically before binding rows (or find a way to combine data frames vertically, by comlumn name)
+  one_year = twelve_core(year) %>% select(sort(current_vars()))
+  
+  # bind_rows() changes factor columns into characters if the factors don't match up, so I used rbind instead.
+  combined = rbind(combined, one_year)
 }
 
 knitr::kable(head(combined))
 ```
 
-|    id | year | sex    | cig\_ever | cig\_month | alc\_lifetime | alc\_month | alc\_drunk\_lifetime |   weight | grade | vape\_ever | vape\_any\_month | vape\_nic\_lifetime | vape\_nic\_month | vape\_mj\_lifetime | vape\_mj\_month | vape\_flav\_lifetime | vape\_flav\_month |
-| ----: | ---: | :----- | :-------- | :--------- | :------------ | :--------- | :------------------- | -------: | ----: | :--------- | :--------------- | :------------------ | :--------------- | :----------------- | :-------------- | :------------------- | :---------------- |
-| 10001 | 2016 | Male   | Yes       | No         | Yes           | Yes        | Yes                  | 1.306960 |    12 | Yes        | Yes              | NA                  | NA               | NA                 | NA              | NA                   | NA                |
-| 10002 | 2016 | Female | No        | No         | Yes           | Yes        | Yes                  | 1.453475 |    12 | No         | No               | NA                  | NA               | NA                 | NA              | NA                   | NA                |
-| 10003 | 2016 | Male   | Yes       | No         | Yes           | No         | Yes                  | 1.399638 |    12 | Yes        | No               | NA                  | NA               | NA                 | NA              | NA                   | NA                |
-| 10004 | 2016 | Female | No        | No         | No            | No         | No                   | 1.416772 |    12 | No         | No               | NA                  | NA               | NA                 | NA              | NA                   | NA                |
-| 10005 | 2016 | Male   | Yes       | Yes        | Yes           | Yes        | Yes                  | 1.515468 |    12 | Yes        | Yes              | NA                  | NA               | NA                 | NA              | NA                   | NA                |
-| 10006 | 2016 | Male   | No        | No         | Yes           | No         | No                   | 1.416125 |    12 | No         | No               | NA                  | NA               | NA                 | NA              | NA                   | NA                |
+| alc\_drunk\_lifetime | alc\_lifetime | alc\_month | cig\_ever | cig\_month | grade |    id | sex    | vape\_any\_month | vape\_ever | vape\_flav\_lifetime | vape\_flav\_month | vape\_mj\_lifetime | vape\_mj\_month | vape\_nic\_lifetime | vape\_nic\_month |   weight | year |
+| :------------------- | :------------ | :--------- | :-------- | :--------- | ----: | ----: | :----- | :--------------- | :--------- | :------------------- | :---------------- | :----------------- | :-------------- | :------------------ | :--------------- | -------: | ---: |
+| Yes                  | Yes           | Yes        | Yes       | No         |    12 | 10001 | Male   | Yes              | Yes        | NA                   | NA                | NA                 | NA              | NA                  | NA               | 1.306960 | 2016 |
+| Yes                  | Yes           | Yes        | No        | No         |    12 | 10002 | Female | No               | No         | NA                   | NA                | NA                 | NA              | NA                  | NA               | 1.453475 | 2016 |
+| Yes                  | Yes           | No         | Yes       | No         |    12 | 10003 | Male   | No               | Yes        | NA                   | NA                | NA                 | NA              | NA                  | NA               | 1.399638 | 2016 |
+| No                   | No            | No         | No        | No         |    12 | 10004 | Female | No               | No         | NA                   | NA                | NA                 | NA              | NA                  | NA               | 1.416772 | 2016 |
+| Yes                  | Yes           | Yes        | Yes       | Yes        |    12 | 10005 | Male   | Yes              | Yes        | NA                   | NA                | NA                 | NA              | NA                  | NA               | 1.515468 | 2016 |
+| No                   | Yes           | No         | No        | No         |    12 | 10006 | Male   | No               | No         | NA                   | NA                | NA                 | NA              | NA                  | NA               | 1.416125 | 2016 |
 
 ``` r
-summary(combined[, c(2, 3, 4, 5, 6, 17, 18)])
+summary(combined[, c(1, 2, 8, 9, 10, 11)])
 ```
 
-    ##       year          sex        cig_ever     cig_month    alc_lifetime
-    ##  Min.   :2016   Male  :17722   No  :28681   No  :35092   No  :14300  
-    ##  1st Qu.:2016   Female:18559   Yes : 9914   Yes : 3501   Yes :23039  
-    ##  Median :2017   NA's  : 4343   NA's: 2029   NA's: 2031   NA's: 3285  
-    ##  Mean   :2017                                                        
-    ##  3rd Qu.:2018                                                        
-    ##  Max.   :2018                                                        
-    ##  vape_flav_lifetime vape_flav_month   
-    ##  Length:40624       Length:40624      
-    ##  Class :character   Class :character  
-    ##  Mode  :character   Mode  :character  
-    ##                                       
-    ##                                       
-    ## 
+    ##  alc_drunk_lifetime alc_lifetime     sex        vape_any_month vape_ever   
+    ##  No  : 6329         No  :14300   Male  :17722   No  : 9632     No  : 7508  
+    ##  Yes : 5409         Yes :23039   Female:18559   Yes : 2437     Yes : 4686  
+    ##  NA's:28886         NA's: 3285   NA's  : 4343   NA's:28555     NA's:28430  
+    ##  vape_flav_lifetime
+    ##  No  : 5624        
+    ##  Yes : 2761        
+    ##  NA's:32239
+
+</details>
 
 # Goal \#2: Reproduce trend graphs from the [NIDA for Teens interactive chart](https://teens.drugabuse.gov/teachers/stats-and-trends-teen-drug-use)
 

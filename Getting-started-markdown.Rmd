@@ -31,10 +31,10 @@ Specifically: lifetime prevalence of use of a handful of different substances am
 
 ## Step 1: get core data from all 3 years and grades into 1 table
 
-I'll keep the cigarette, vaping, and alcohol indicators for "ever used" (lifetime prevalence) as well as "last 30 days": 
+I'll keep the cigarette, vaping, and alcohol indicators for "ever used" (lifetime prevalence) as well as "last 30 days":
+<details>
+<summary>Twelth grade, core form, 2016-2018 (click to see code)</summary>
 ```{r twelve_core_3_years, warning = FALSE, message = FALSE}
-
-# Question: what do I do if the thing I'm looking for isn't in that year's form?
 twelve_core = function(year) {
   path = paste("data/12th-grade-2016-2018/y", year, "_1.sas7bdat", sep = "")
   
@@ -94,12 +94,12 @@ twelve_core = function(year) {
           ) %>% 
       mutate(.,
            vape_ever = recode_factor(vape_ever, "1" = "No", "-9" = NA_character_, .default = "Yes"),
-           vape_nic_lifetime = NA_character_,
-           vape_nic_month = NA_character_,
-           vape_mj_lifetime = NA_character_,
-           vape_mj_month = NA_character_,
-           vape_flav_lifetime = NA_character_,
-           vape_flav_month = NA_character_,
+           vape_nic_lifetime = as.factor(NA),
+           vape_nic_month = as.factor(NA),
+           vape_mj_lifetime = as.factor(NA),
+           vape_mj_month = as.factor(NA),
+           vape_flav_lifetime = as.factor(NA),
+           vape_flav_month = as.factor(NA),
            vape_any_month = recode_factor(vape_any_month, "1" = "No", "-9" = NA_character_, .default = "Yes")
            )
   }
@@ -108,16 +108,20 @@ twelve_core = function(year) {
   output
 }
 
-
-# combine these together into full dataset - later add in other years
 combined = tibble()
 for (year in 2016:2018) {
-  combined = bind_rows(combined, twelve_core(year))
+  # need to sort alphabetically before binding rows (or find a way to combine data frames vertically, by comlumn name)
+  one_year = twelve_core(year) %>% select(sort(current_vars()))
+  
+  # bind_rows() changes factor columns into characters if the factors don't match up, so I used rbind instead.
+  combined = rbind(combined, one_year)
 }
 
 knitr::kable(head(combined))
-summary(combined[, c(2, 3, 4, 5, 6, 17, 18)])
+summary(combined[, c(1, 2, 8, 9, 10, 11)])
 ```
+</details>
+
 
 ```{r, echo = FALSE, eval = FALSE}
 # require(table1)
