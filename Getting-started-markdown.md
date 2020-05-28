@@ -33,12 +33,12 @@ knitr::kable(df2[1:5,1:8])
 | 1991 | 70004 |      1 |     8 |   1 |   0.4084 |   1 |    NA |
 | 1991 | 70005 |      1 |     8 |  NA |   0.4367 |  NA |    NA |
 
-# Goal \#1: Reproduce a smaller version of [Table 1 from the MTF 2018 report](http://www.monitoringthefuture.org//pubs/monographs/mtf-overview2018.pdf#page=59&zoom=100,0,0)
+# Goal \#1: Reproduce a smaller version of [Table 5 from the MTF 2018 report](http://www.monitoringthefuture.org//pubs/monographs/mtf-overview2018.pdf#page=59&zoom=100,0,0)
 
-Specifically: lifetime prevalence of use of a handful of different
-substances among all grades combined, for 2016-2018 (highlighted below).
+Specifically: lifetime prevalence for any vaping and ever being drunk,
+split up by grade, for 2016-2018 (highlighted below).
 
-![Table 1](images/Table1.png)
+![Table 5](images/Table%205.png)
 
 ## Step 1: get core data from all 3 years and grades into 1 table
 
@@ -124,16 +124,16 @@ twelve_core = function(year) {
   output
 }
 
-combined = tibble()
+twelve_combined = tibble()
 for (year in 2016:2018) {
   # need to sort alphabetically before binding rows (or find a way to combine data frames vertically, by comlumn name)
   one_year = twelve_core(year) %>% select(sort(current_vars()))
   
-  # bind_rows() changes factor columns into characters if the factors don't match up, so I used rbind instead.
-  combined = rbind(combined, one_year)
+  # bind_rows() changes factor columns into characters if the factors don't match up, so I used rbind() instead.
+  twelve_combined = rbind(twelve_combined, one_year)
 }
 
-knitr::kable(head(combined))
+knitr::kable(head(twelve_combined))
 ```
 
 | alc\_drunk\_lifetime | alc\_lifetime | alc\_month | cig\_ever | cig\_month | grade |    id | sex    | vape\_any\_month | vape\_ever | vape\_flav\_lifetime | vape\_flav\_month | vape\_mj\_lifetime | vape\_mj\_month | vape\_nic\_lifetime | vape\_nic\_month |   weight | year |
@@ -146,7 +146,7 @@ knitr::kable(head(combined))
 | No                   | Yes           | No         | No        | No         |    12 | 10006 | Male   | No               | No         | NA                   | NA                | NA                 | NA              | NA                  | NA               | 1.416125 | 2016 |
 
 ``` r
-summary(combined[, c(1, 2, 8, 9, 10, 11)])
+summary(twelve_combined[, c(1, 2, 8, 9, 10, 11)])
 ```
 
     ##  alc_drunk_lifetime alc_lifetime     sex        vape_any_month vape_ever   
@@ -157,6 +157,129 @@ summary(combined[, c(1, 2, 8, 9, 10, 11)])
     ##  No  : 5624        
     ##  Yes : 2761        
     ##  NA's:32239
+
+</details>
+
+<details>
+
+<summary>Eighth & tenth grade, core form, 2016-2018 (click to see
+code)</summary>
+
+``` r
+eight_ten_core = function(year) {
+  path = paste("data/8th-10th-grades-2016-2018/y_", year, "_810_1.sas7bdat", sep = "")
+  
+  # using data from all forms, and later I'll kick out people who didn't get asked a specific question
+  basic_set = read_sas(data_file = path) %>% 
+    select(.,
+           id = CASEID,
+           year = V1,
+           sex = V7202,
+           cig_ever = V7101,
+           cig_month = V7102,
+           alc_lifetime = V7104,
+           alc_month = V7107,
+           alc_drunk_lifetime = V7109,
+           weight = V5,
+           grade = V501
+           ) %>% 
+    mutate(.,
+           sex = recode_factor(sex, "1" = "Male", "2" = "Female", "-9" = NA_character_),
+           cig_ever = recode_factor(cig_ever, "1" = "No", "-9" = NA_character_, .default = "Yes"),
+           cig_month = recode_factor(cig_month, "1" = "No", "-9" = NA_character_, .default = "Yes"),
+           alc_lifetime = recode_factor(alc_lifetime, "1" = "No", "2" = "Yes","-9" = NA_character_),
+           alc_month = recode_factor(alc_month, "1" = "No", "-9" = NA_character_, .default = "Yes"),
+           alc_drunk_lifetime = recode_factor(alc_drunk_lifetime, "1" = "No", "-9" = NA_character_, .default = "Yes")
+           )
+  
+  if (year >= 2017) { # the year they added in more nuanced vaping questions
+    vaping_data = read_sas(data_file = path) %>% 
+     select(.,
+           id = CASEID,
+           vape_ever = V7648,
+           vape_nic_lifetime = V7649,
+           vape_nic_month = V7651,
+           vape_mj_lifetime = V7652,
+           vape_mj_month = V7654,
+           vape_flav_lifetime = V7655,
+           vape_flav_month = V7657
+          ) %>% 
+      mutate(.,
+           vape_ever = recode_factor(vape_ever, "0" = "No", "1" = "Yes", "-9" = NA_character_, "-8" = "Not asked on this form"),
+           vape_nic_lifetime = recode_factor(vape_nic_lifetime, "1" = "No", "-9" = NA_character_, "-8" = "Not asked on this form", .default = "Yes"),
+           vape_nic_month = recode_factor(vape_nic_month, "1" = "No", "-9" = NA_character_, "-8" = "Not asked on this form", .default = "Yes"),
+           vape_mj_lifetime = recode_factor(vape_mj_lifetime, "1" = "No", "-9" = NA_character_, "-8" = "Not asked on this form", .default = "Yes"),
+           vape_mj_month = recode_factor(vape_mj_month, "1" = "No", "-9" = NA_character_, "-8" = "Not asked on this form", .default = "Yes"),
+           vape_flav_lifetime = recode_factor(vape_flav_lifetime, "1" = "No", "-9" = NA_character_, "-8" = "Not asked on this form", .default = "Yes"),
+           vape_flav_month = recode_factor(vape_flav_month, "1" = "No", "-9" = NA_character_, "-8" = "Not asked on this form", .default = "Yes")
+           ) %>% 
+      mutate(., vape_any_month = as.factor(if_else(
+                 (vape_nic_month == "Yes" | vape_mj_month == "Yes" | vape_flav_month == "Yes"), "Yes", "No")
+                )
+              )
+  } else {
+    vaping_data = read_sas(data_file = path) %>% 
+     select(.,
+           id = CASEID,
+           vape_ever = V7625,
+           vape_any_month = V7626
+          ) %>% 
+      mutate(.,
+           vape_ever = recode_factor(vape_ever, "1" = "No", "-9" = NA_character_, "-8" = "Not asked on this form", .default = "Yes"),
+           vape_nic_lifetime = as.factor("Not asked on this form"),
+           vape_nic_month = as.factor("Not asked on this form"),
+           vape_mj_lifetime = as.factor("Not asked on this form"),
+           vape_mj_month = as.factor("Not asked on this form"),
+           vape_flav_lifetime = as.factor("Not asked on this form"),
+           vape_flav_month = as.factor("Not asked on this form"),
+           vape_any_month = recode_factor(vape_any_month, "1" = "No", "-9" = NA_character_, "-8" = "Not asked on this form", .default = "Yes")
+           )
+  }
+  output = full_join(basic_set, vaping_data, by = "id")
+  
+  output
+}
+
+eight_ten_combined = tibble()
+for (year in 2016:2018) {
+  # need to sort alphabetically before binding rows (or find a way to combine data frames vertically, by comlumn name)
+  one_year = eight_ten_core(year) %>% select(sort(current_vars()))
+  
+  # bind_rows() changes factor columns into characters if the factors don't match up, so I used rbind() instead.
+  eight_ten_combined = rbind(eight_ten_combined, one_year)
+}
+
+# TODO: fix problem where I'm getting too many responses (likely because the same question is asked on multiple forms)
+knitr::kable(head(eight_ten_combined))
+```
+
+| alc\_drunk\_lifetime | alc\_lifetime | alc\_month | cig\_ever | cig\_month | grade | id | sex    | vape\_any\_month       | vape\_ever             | vape\_flav\_lifetime   | vape\_flav\_month      | vape\_mj\_lifetime     | vape\_mj\_month        | vape\_nic\_lifetime    | vape\_nic\_month       |    weight | year |
+| :------------------- | :------------ | :--------- | :-------- | :--------- | ----: | -: | :----- | :--------------------- | :--------------------- | :--------------------- | :--------------------- | :--------------------- | :--------------------- | :--------------------- | :--------------------- | --------: | ---: |
+| No                   | No            | No         | No        | No         |     8 |  1 | Female | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | 0.7856047 | 2016 |
+| NA                   | Yes           | Yes        | Yes       | Yes        |     8 |  2 | Male   | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | 1.2791966 | 2016 |
+| Yes                  | Yes           | Yes        | No        | No         |    10 |  3 | Female | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | 0.6264969 | 2016 |
+| No                   | Yes           | No         | No        | No         |    10 |  4 | Male   | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | 0.9297171 | 2016 |
+| No                   | No            | No         | No        | No         |     8 |  5 | Male   | No                     | No                     | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | 0.6221151 | 2016 |
+| No                   | No            | No         | No        | No         |    10 |  6 | Female | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | Not asked on this form | 1.0048257 | 2016 |
+
+``` r
+summary(eight_ten_combined[, c(1, 2, 7, 8, 9)])
+```
+
+    ##  alc_drunk_lifetime alc_lifetime       id            sex       
+    ##  No  :69710         No  :57482   Min.   :    1   Male  :43847  
+    ##  Yes :14899         Yes :29131   1st Qu.: 7753   Female:44021  
+    ##  NA's: 8425         NA's: 6421   Median :15506   NA's  : 5166  
+    ##                                  Mean   :15534                 
+    ##                                  3rd Qu.:23259                 
+    ##                                  Max.   :32873                 
+    ##                 vape_any_month 
+    ##  No                    :65223  
+    ##  Not asked on this form:21923  
+    ##  Yes                   : 3457  
+    ##  NA's                  : 2431  
+    ##                                
+    ## 
 
 </details>
 
@@ -177,5 +300,8 @@ vaping, from 2016-2018.
 
   - What should I do about the weights?
   - Should I include missing data in the denominator for prevalences?
-  - For a question like *V2566: BY18 34230 EVER VAPE (p. 56)*, what does
-    70% missing mean? were some large amount of participants not asked?
+  - How should I weight something if I’m trying to combine 8th, 10th,
+    and 12th grades?
+  - For a question like *V2566: BY18 34230 EVER VAPE (p. 56, 12th
+    grade)*, what does 70% missing mean? were some large amount of
+    participants not asked?
