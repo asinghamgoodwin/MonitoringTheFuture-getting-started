@@ -232,6 +232,13 @@ require(table1)
 knitr::kable(table1(~ grade | year*alc_drunk_lifetime, data = all_three_grades_and_years))
 ```
 
+Here, I'm just trying to get those 18 numbers in Table 5 from my data. It looks like sometiems the `NA`s should be in the denominator, and other times they shouldn't....
+```{r counts, warning = FALSE, message = FALSE}
+been_drunk = all_three_grades_and_years %>% 
+  group_by(., year, grade) %>% 
+  count(., alc_drunk_lifetime)
+been_drunk
+```
 
 
 # Goal #2: Reproduce trend graphs from the [NIDA for Teens interactive chart](https://teens.drugabuse.gov/teachers/stats-and-trends-teen-drug-use)
@@ -239,6 +246,7 @@ knitr::kable(table1(~ grade | year*alc_drunk_lifetime, data = all_three_grades_a
 Specifically, I'd like to make [this view](https://public.tableau.com/shared/JF2B545PM?:display_count=y&:origin=viz_share_link&:embed=y), showing 8th, 10th, and 12th grade trends in past-30-day alcohol use and vaping, from 2016-2018.
 
 ![Trend graphs](images/TableauTrends.png)
+
 
 
 # Goal #3: Use information from across multiple forms
@@ -250,3 +258,4 @@ Specifically, I'd like to make [this view](https://public.tableau.com/shared/JF2
 * Should I include missing data in the denominator for prevalences?
 * How should I weight something if I'm trying to combine 8th, 10th, and 12th grades?
 * For a question like *V2566: BY18 34230 EVER VAPE (p. 56, 12th grade)*, what does 70% missing mean? were some large amount of participants not asked? 
+* In SAS, I do `proc freq` a ton, just to check up on how my data manipulation is going, and catch any surprises. What's the corresponding workflow in R?
