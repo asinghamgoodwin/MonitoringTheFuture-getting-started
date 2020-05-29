@@ -213,8 +213,11 @@ eight_ten_core = function(year) {
            vape_flav_lifetime = recode_factor(vape_flav_lifetime, "1" = "No", "-9" = NA_character_, "-8" = "Not asked on this form", .default = "Yes"),
            vape_flav_month = recode_factor(vape_flav_month, "1" = "No", "-9" = NA_character_, "-8" = "Not asked on this form", .default = "Yes")
            ) %>% 
-      mutate(., vape_any_month = as.factor(if_else(
-                 (vape_nic_month == "Yes" | vape_mj_month == "Yes" | vape_flav_month == "Yes"), "Yes", "No")
+      mutate(., vape_any_month = as.factor(case_when(
+                 vape_nic_month == "Not asked on this form" ~ "Not asked on this form", # all these questions are asked on the same form (2)
+                 (vape_nic_month == "Yes" | vape_mj_month == "Yes" | vape_flav_month == "Yes") ~ "Yes",
+                 (is.na(vape_nic_month) & is.na(vape_mj_month) & is.na(vape_flav_month)) ~ NA_character_,
+                 TRUE ~ "No")
                 )
               )
   } else {
@@ -249,7 +252,6 @@ for (year in 2016:2018) {
   eight_ten_combined = rbind(eight_ten_combined, one_year)
 }
 
-# TODO: fix problem where I'm getting too many responses (likely because the same question is asked on multiple forms)
 knitr::kable(head(eight_ten_combined))
 ```
 
@@ -274,14 +276,376 @@ summary(eight_ten_combined[, c(1, 2, 7, 8, 9)])
     ##                                  3rd Qu.:23259                 
     ##                                  Max.   :32873                 
     ##                 vape_any_month 
-    ##  No                    :65223  
-    ##  Not asked on this form:21923  
+    ##  No                    :25306  
+    ##  Not asked on this form:62019  
     ##  Yes                   : 3457  
-    ##  NA's                  : 2431  
+    ##  NA's                  : 2252  
     ##                                
     ## 
 
 </details>
+
+Combine information from all grades across all 3
+years:
+
+``` r
+# I used this to check and make sure it was ok to combine these one on top of another
+# colnames(eight_ten_combined) == colnames(twelve_combined)
+
+all_three_grades_and_years = rbind(eight_ten_combined, twelve_combined) %>% 
+  mutate(., grade = as.factor(grade))
+# summary(all_three_grades_and_years)
+```
+
+Here’s my first attempt at using the [`table1`
+package](https://cran.r-project.org/web/packages/table1/vignettes/table1-examples.html).
+It looks beautiful in RStudio\! (not as great in markdown) But also all
+of these numbers are very wrong… so I’ll need to investigate why.
+
+``` r
+require(table1)
+knitr::kable(table1(~ grade | year*alc_drunk_lifetime, data = all_three_grades_and_years))
+```
+
+| x |
+| :- |
+
+|
+
+<table class="Rtable1">
+
+<thead>
+
+<tr>
+
+<th class="grouplabel">
+
+</th>
+
+<th colspan="2" class="grouplabel">
+
+<div>
+
+2016
+
+</div>
+
+</th>
+
+<th colspan="2" class="grouplabel">
+
+<div>
+
+2017
+
+</div>
+
+</th>
+
+<th colspan="2" class="grouplabel">
+
+<div>
+
+2018
+
+</div>
+
+</th>
+
+<th colspan="2" class="grouplabel">
+
+<div>
+
+Overall
+
+</div>
+
+</th>
+
+</tr>
+
+<tr>
+
+<th class="rowlabel firstrow lastrow">
+
+</th>
+
+<th class="firstrow lastrow">
+
+<span class="stratlabel">No<br><span class="stratn">(N=26884)</span></span>
+
+</th>
+
+<th class="firstrow lastrow">
+
+<span class="stratlabel">Yes<br><span class="stratn">(N=6932)</span></span>
+
+</th>
+
+<th class="firstrow lastrow">
+
+<span class="stratlabel">No<br><span class="stratn">(N=24816)</span></span>
+
+</th>
+
+<th class="firstrow lastrow">
+
+<span class="stratlabel">Yes<br><span class="stratn">(N=6645)</span></span>
+
+</th>
+
+<th class="firstrow lastrow">
+
+<span class="stratlabel">No<br><span class="stratn">(N=24339)</span></span>
+
+</th>
+
+<th class="firstrow lastrow">
+
+<span class="stratlabel">Yes<br><span class="stratn">(N=6731)</span></span>
+
+</th>
+
+<th class="firstrow lastrow">
+
+<span class="stratlabel">No<br><span class="stratn">(N=76039)</span></span>
+
+</th>
+
+<th class="firstrow lastrow">
+
+<span class="stratlabel">Yes<br><span class="stratn">(N=20308)</span></span>
+
+</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+
+<td class="rowlabel firstrow">
+
+<span class="varlabel">grade</span>
+
+</td>
+
+<td class="firstrow">
+
+</td>
+
+<td class="firstrow">
+
+</td>
+
+<td class="firstrow">
+
+</td>
+
+<td class="firstrow">
+
+</td>
+
+<td class="firstrow">
+
+</td>
+
+<td class="firstrow">
+
+</td>
+
+<td class="firstrow">
+
+</td>
+
+<td class="firstrow">
+
+</td>
+
+</tr>
+
+<tr>
+
+<td class="rowlabel">
+
+8
+
+</td>
+
+<td>
+
+14707 (54.7%)
+
+</td>
+
+<td>
+
+1439 (20.8%)
+
+</td>
+
+<td>
+
+13184 (53.1%)
+
+</td>
+
+<td>
+
+1381 (20.8%)
+
+</td>
+
+<td>
+
+12056 (49.5%)
+
+</td>
+
+<td>
+
+1245 (18.5%)
+
+</td>
+
+<td>
+
+39947 (52.5%)
+
+</td>
+
+<td>
+
+4065 (20.0%)
+
+</td>
+
+</tr>
+
+<tr>
+
+<td class="rowlabel">
+
+10
+
+</td>
+
+<td>
+
+10212 (38.0%)
+
+</td>
+
+<td>
+
+3783 (54.6%)
+
+</td>
+
+<td>
+
+9558 (38.5%)
+
+</td>
+
+<td>
+
+3387 (51.0%)
+
+</td>
+
+<td>
+
+9993 (41.1%)
+
+</td>
+
+<td>
+
+3664 (54.4%)
+
+</td>
+
+<td>
+
+29763 (39.1%)
+
+</td>
+
+<td>
+
+10834 (53.3%)
+
+</td>
+
+</tr>
+
+<tr>
+
+<td class="rowlabel lastrow">
+
+12
+
+</td>
+
+<td class="lastrow">
+
+1965 (7.3%)
+
+</td>
+
+<td class="lastrow">
+
+1710 (24.7%)
+
+</td>
+
+<td class="lastrow">
+
+2074 (8.4%)
+
+</td>
+
+<td class="lastrow">
+
+1877 (28.2%)
+
+</td>
+
+<td class="lastrow">
+
+2290 (9.4%)
+
+</td>
+
+<td class="lastrow">
+
+1822 (27.1%)
+
+</td>
+
+<td class="lastrow">
+
+6329 (8.3%)
+
+</td>
+
+<td class="lastrow">
+
+5409
+(26.6%)
+
+</td>
+
+</tr>
+
+</tbody>
+
+</table>
+
+|
 
 # Goal \#2: Reproduce trend graphs from the [NIDA for Teens interactive chart](https://teens.drugabuse.gov/teachers/stats-and-trends-teen-drug-use)
 
