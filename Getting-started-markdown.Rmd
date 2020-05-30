@@ -232,12 +232,31 @@ require(table1)
 knitr::kable(table1(~ grade | year*alc_drunk_lifetime, data = all_three_grades_and_years))
 ```
 
-Here, I'm just trying to get those 18 numbers in Table 5 from my data. It looks like sometiems the `NA`s should be in the denominator, and other times they shouldn't....
+Here, I'm just trying to get those 18 numbers in Table 5 from my data. ~~It looks like sometiems the `NA`s should be in the denominator, and other times they shouldn't....~~ Now that I've added the weights, it looks lke the NAs are always excluded from the counts in Table 5.
 ```{r counts, warning = FALSE, message = FALSE}
+# get raw counts
 been_drunk = all_three_grades_and_years %>% 
   group_by(., year, grade) %>% 
-  count(., alc_drunk_lifetime)
-been_drunk
+  count(., alc_drunk_lifetime, wt = weight)
+
+knitr::kable(been_drunk %>% pivot_wider(., names_from = year, values_from = n))
+
+# there has to be a better way to get the "percent yes" for each group...
+been_drunk_percentages = been_drunk %>% 
+  pivot_wider(., names_from = alc_drunk_lifetime, values_from = n) %>% 
+  mutate(.,
+         percent_yes = (Yes / (Yes + No))*100
+         ) %>% 
+  select(., year, grade, percent_yes) %>% 
+  pivot_wider(.,
+              names_from = year,
+              values_from = percent_yes
+              ) %>% 
+  mutate(.,
+         change_2017_2018 = `2018` - `2017`
+         )
+  
+knitr::kable(been_drunk_percentages, digits = 1, caption = "Lifetime prevalence: ever been drunk")
 ```
 
 
@@ -247,6 +266,56 @@ Specifically, I'd like to make [this view](https://public.tableau.com/shared/JF2
 
 ![Trend graphs](images/TableauTrends.png)
 
+I learned about [tidy eval](https://tidyeval.tidyverse.org/introduction.html) for this function - which allows me to pass column names into a function.
+```{r percentage_function}
+# NOTE: table must have columns called "year", "grade", "weight", and "variable"
+# the "variable" column must be factors, where we care about levels "Yes" and "No" and ignore anything else
+get_percentage_by_grade_and_year = function(table = table, variable = variable) {
+  if (!all(c("year", "grade", "weight", variable) %in% names(table))) {
+    stop(paste(sep = "", "table must contain year, grade, weight, and (your input) ", variable, " columns"))
+  }
+  
+  # get raw counts
+  counts = table %>% 
+    group_by(., year, grade) %>% 
+    count(., !!sym(variable), wt = weight)
+  
+  # get the "percent yes" for each year/grade group...
+  percent_yes = counts %>% 
+    pivot_wider(., names_from = !!sym(variable), values_from = n) %>% 
+    mutate(.,
+           percent_yes = (Yes / (Yes + No))*100
+    ) %>% 
+    select(., year, grade, percent_yes) %>% 
+    pivot_wider(.,
+                names_from = year,
+                values_from = percent_yes
+    )
+  
+  percent_yes
+}
+
+alcohol_past_month = get_percentage_by_grade_and_year(table = all_three_grades_and_years, variable = "alc_month")
+vape_past_month = get_percentage_by_grade_and_year(table = all_three_grades_and_years, variable = "vape_any_month")
+
+knitr::kable(alcohol_past_month, digits = 1)
+knitr::kable(vape_past_month, digits = 1)
+```
+
+
+```{r past_month_by_grade}
+t = alcohol_past_month %>% 
+  ungroup(.) %>% 
+  pivot_longer(.,
+                 cols = `2016`:`2018`,
+                 names_to = "year",
+                 values_to = "percent")
+
+t
+
+ggplot(t, aes(x = year, y = percent, group = grade, color = grade)) +
+  geom_line() + geom_point()
+```
 
 
 # Goal #3: Use information from across multiple forms

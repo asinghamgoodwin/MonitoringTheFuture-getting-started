@@ -634,8 +634,7 @@ Overall
 
 <td class="lastrow">
 
-5409
-(26.6%)
+5409 (26.6%)
 
 </td>
 
@@ -647,6 +646,60 @@ Overall
 
 |
 
+Here, I’m just trying to get those 18 numbers in Table 5 from my data.
+~~It looks like sometiems the `NA`s should be in the denominator, and
+other times they shouldn’t….~~ Now that I’ve added the weights, it looks
+lke the NAs are always excluded from the counts in Table 5.
+
+``` r
+# get raw counts
+been_drunk = all_three_grades_and_years %>% 
+  group_by(., year, grade) %>% 
+  count(., alc_drunk_lifetime, wt = weight)
+
+knitr::kable(been_drunk %>% pivot_wider(., names_from = year, values_from = n))
+```
+
+| grade | alc\_drunk\_lifetime |      2016 |      2017 |      2018 |
+| :---- | :------------------- | --------: | --------: | --------: |
+| 8     | No                   | 14776.806 | 13253.420 | 12147.320 |
+| 8     | Yes                  |  1393.291 |  1348.422 |  1227.123 |
+| 8     | NA                   |  1472.903 |  1408.158 |  1461.557 |
+| 10    | No                   | 10383.268 |  9669.610 |  9977.391 |
+| 10    | Yes                  |  3665.726 |  3219.266 |  3582.768 |
+| 10    | NA                   |  1181.006 |  1282.123 |  1583.840 |
+| 12    | No                   |  1987.016 |  2117.356 |  2322.868 |
+| 12    | Yes                  |  1691.132 |  1781.727 |  1751.088 |
+| 12    | NA                   |  8921.852 |  9622.917 | 10428.045 |
+
+``` r
+# there has to be a better way to get the "percent yes" for each group...
+been_drunk_percentages = been_drunk %>% 
+  pivot_wider(., names_from = alc_drunk_lifetime, values_from = n) %>% 
+  mutate(.,
+         percent_yes = (Yes / (Yes + No))*100
+         ) %>% 
+  select(., year, grade, percent_yes) %>% 
+  pivot_wider(.,
+              names_from = year,
+              values_from = percent_yes
+              ) %>% 
+  mutate(.,
+         change_2017_2018 = `2018` - `2017`
+         )
+  
+knitr::kable(been_drunk_percentages, digits = 1, caption = "Lifetime prevalence: ever been drunk")
+```
+
+| grade | 2016 | 2017 | 2018 | change\_2017\_2018 |
+| :---- | ---: | ---: | ---: | -----------------: |
+| 8     |  8.6 |  9.2 |  9.2 |              \-0.1 |
+| 10    | 26.1 | 25.0 | 26.4 |                1.4 |
+| 12    | 46.0 | 45.7 | 43.0 |              \-2.7 |
+
+Lifetime prevalence: ever been
+drunk
+
 # Goal \#2: Reproduce trend graphs from the [NIDA for Teens interactive chart](https://teens.drugabuse.gov/teachers/stats-and-trends-teen-drug-use)
 
 Specifically, I’d like to make [this
@@ -655,6 +708,103 @@ showing 8th, 10th, and 12th grade trends in past-30-day alcohol use and
 vaping, from 2016-2018.
 
 ![Trend graphs](images/TableauTrends.png)
+
+I learned about [tidy
+eval](https://tidyeval.tidyverse.org/introduction.html) for this
+function - which allows me to pass column names into a
+function.
+
+``` r
+# NOTE: table must have columns called "year", "grade", "weight", and "variable"
+# the "variable" column must be factors, where we care about levels "Yes" and "No" and ignore anything else
+get_percentage_by_grade_and_year = function(table = table, variable = variable) {
+  if (!all(c("year", "grade", "weight", variable) %in% names(table))) {
+    stop(paste(sep = "", "table must contain year, grade, weight, and (your input) ", variable, " columns"))
+  }
+  
+  # get raw counts
+  counts = table %>% 
+    group_by(., year, grade) %>% 
+    count(., !!sym(variable), wt = weight)
+  
+  # get the "percent yes" for each year/grade group...
+  percent_yes = counts %>% 
+    pivot_wider(., names_from = !!sym(variable), values_from = n) %>% 
+    mutate(.,
+           percent_yes = (Yes / (Yes + No))*100
+    ) %>% 
+    select(., year, grade, percent_yes) %>% 
+    pivot_wider(.,
+                names_from = year,
+                values_from = percent_yes
+    )
+  
+  percent_yes
+}
+
+alcohol_past_month = get_percentage_by_grade_and_year(table = all_three_grades_and_years, variable = "alc_month")
+```
+
+    ## Warning: Factor `alc_month` contains implicit NA, consider using
+    ## `forcats::fct_explicit_na`
+
+``` r
+vape_past_month = get_percentage_by_grade_and_year(table = all_three_grades_and_years, variable = "vape_any_month")
+```
+
+    ## Warning: Factor `vape_any_month` contains implicit NA, consider using
+    ## `forcats::fct_explicit_na`
+
+``` r
+knitr::kable(alcohol_past_month, digits = 1)
+```
+
+| grade | 2016 | 2017 | 2018 |
+| :---- | ---: | ---: | ---: |
+| 8     |  7.2 |  8.0 |  8.1 |
+| 10    | 20.0 | 19.6 | 18.7 |
+| 12    | 33.1 | 33.5 | 30.4 |
+
+``` r
+knitr::kable(vape_past_month, digits = 1)
+```
+
+| grade | 2016 | 2017 | 2018 |
+| :---- | ---: | ---: | ---: |
+| 8     |  6.3 |  6.6 | 10.3 |
+| 10    | 11.0 | 13.0 | 21.5 |
+| 12    | 12.4 | 17.1 | 26.9 |
+
+``` r
+t = alcohol_past_month %>% 
+  ungroup(.) %>% 
+  pivot_longer(.,
+                 cols = `2016`:`2018`,
+                 names_to = "year",
+                 values_to = "percent")
+
+t
+```
+
+    ## # A tibble: 9 x 3
+    ##   grade year  percent
+    ##   <fct> <chr>   <dbl>
+    ## 1 8     2016     7.21
+    ## 2 8     2017     7.97
+    ## 3 8     2018     8.13
+    ## 4 10    2016    20.0 
+    ## 5 10    2017    19.6 
+    ## 6 10    2018    18.7 
+    ## 7 12    2016    33.1 
+    ## 8 12    2017    33.5 
+    ## 9 12    2018    30.4
+
+``` r
+ggplot(t, aes(x = year, y = percent, group = grade, color = grade)) +
+  geom_line() + geom_point()
+```
+
+![](Getting-started-markdown_files/figure-gfm/past_month_by_grade-1.png)<!-- -->
 
 # Goal \#3: Use information from across multiple forms
 
@@ -669,3 +819,6 @@ vaping, from 2016-2018.
   - For a question like *V2566: BY18 34230 EVER VAPE (p. 56, 12th
     grade)*, what does 70% missing mean? were some large amount of
     participants not asked?
+  - In SAS, I do `proc freq` a ton, just to check up on how my data
+    manipulation is going, and catch any surprises. What’s the
+    corresponding workflow in R?
