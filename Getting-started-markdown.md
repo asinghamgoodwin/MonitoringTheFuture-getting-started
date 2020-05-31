@@ -820,7 +820,7 @@ plot_by_grade(table = alcohol_past_month,
               y_label = "Average percent useage per grade") +
   plot_by_grade(table = vape_past_month,
                 title = "Any Vaping: past month",
-                y_label = "Average percent useage per grade") 
+                y_label = "") 
 ```
 
 ![](Getting-started-markdown_files/figure-gfm/past_month_by_grade-1.png)<!-- -->
