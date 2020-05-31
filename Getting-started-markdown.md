@@ -38,8 +38,6 @@ knitr::kable(df2[1:5,1:8])
 Specifically: lifetime prevalence for any vaping and ever being drunk,
 split up by grade, for 2016-2018 (highlighted below).
 
-![Table 5](images/Table%205.png)
-
 ## Step 1: get core data from all 3 years and grades into 1 table
 
 I’ll keep the cigarette, vaping, and alcohol indicators for “ever used”
@@ -285,13 +283,17 @@ summary(eight_ten_combined[, c(1, 2, 7, 8, 9)])
 
 </details>
 
-Combine information from all grades across all 3
-years:
+Combine information from all grades across all 3 years:
 
 ``` r
-# I used this to check and make sure it was ok to combine these one on top of another
-# colnames(eight_ten_combined) == colnames(twelve_combined)
+# Check and make sure it was ok to combine these one on top of another
+colnames(eight_ten_combined) == colnames(twelve_combined)
+```
 
+    ##  [1] TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE
+    ## [16] TRUE TRUE TRUE
+
+``` r
 all_three_grades_and_years = rbind(eight_ten_combined, twelve_combined) %>% 
   mutate(., grade = as.factor(grade))
 # summary(all_three_grades_and_years)
@@ -300,7 +302,8 @@ all_three_grades_and_years = rbind(eight_ten_combined, twelve_combined) %>%
 Here’s my first attempt at using the [`table1`
 package](https://cran.r-project.org/web/packages/table1/vignettes/table1-examples.html).
 It looks beautiful in RStudio\! (not as great in markdown) But also all
-of these numbers are very wrong… so I’ll need to investigate why.
+of these numbers are very wrong… so at some point I’ll need to
+investigate why.
 
 ``` r
 require(table1)
@@ -646,73 +649,19 @@ Overall
 
 |
 
-Here, I’m just trying to get those 18 numbers in Table 5 from my data.
-~~It looks like sometiems the `NA`s should be in the denominator, and
-other times they shouldn’t….~~ Now that I’ve added the weights, it looks
-lke the NAs are always excluded from the counts in Table 5.
+Instead of using `table 1`, I’m just trying to get the 18 numbers in
+Table 5 from my data. ~~It looks like sometiems the `NA`s should be in
+the denominator, and other times they shouldn’t….~~ Now that I’ve added
+the weights, it looks lke the NAs are always excluded from the counts in
+Table 5.
 
-``` r
-# get raw counts
-been_drunk = all_three_grades_and_years %>% 
-  group_by(., year, grade) %>% 
-  count(., alc_drunk_lifetime, wt = weight)
-
-knitr::kable(been_drunk %>% pivot_wider(., names_from = year, values_from = n))
-```
-
-| grade | alc\_drunk\_lifetime |      2016 |      2017 |      2018 |
-| :---- | :------------------- | --------: | --------: | --------: |
-| 8     | No                   | 14776.806 | 13253.420 | 12147.320 |
-| 8     | Yes                  |  1393.291 |  1348.422 |  1227.123 |
-| 8     | NA                   |  1472.903 |  1408.158 |  1461.557 |
-| 10    | No                   | 10383.268 |  9669.610 |  9977.391 |
-| 10    | Yes                  |  3665.726 |  3219.266 |  3582.768 |
-| 10    | NA                   |  1181.006 |  1282.123 |  1583.840 |
-| 12    | No                   |  1987.016 |  2117.356 |  2322.868 |
-| 12    | Yes                  |  1691.132 |  1781.727 |  1751.088 |
-| 12    | NA                   |  8921.852 |  9622.917 | 10428.045 |
-
-``` r
-# there has to be a better way to get the "percent yes" for each group...
-been_drunk_percentages = been_drunk %>% 
-  pivot_wider(., names_from = alc_drunk_lifetime, values_from = n) %>% 
-  mutate(.,
-         percent_yes = (Yes / (Yes + No))*100
-         ) %>% 
-  select(., year, grade, percent_yes) %>% 
-  pivot_wider(.,
-              names_from = year,
-              values_from = percent_yes
-              ) %>% 
-  mutate(.,
-         change_2017_2018 = `2018` - `2017`
-         )
-  
-knitr::kable(been_drunk_percentages, digits = 1, caption = "Lifetime prevalence: ever been drunk")
-```
-
-| grade | 2016 | 2017 | 2018 | change\_2017\_2018 |
-| :---- | ---: | ---: | ---: | -----------------: |
-| 8     |  8.6 |  9.2 |  9.2 |              \-0.1 |
-| 10    | 26.1 | 25.0 | 26.4 |                1.4 |
-| 12    | 46.0 | 45.7 | 43.0 |              \-2.7 |
-
-Lifetime prevalence: ever been
-drunk
-
-# Goal \#2: Reproduce trend graphs from the [NIDA for Teens interactive chart](https://teens.drugabuse.gov/teachers/stats-and-trends-teen-drug-use)
-
-Specifically, I’d like to make [this
-view](https://public.tableau.com/shared/JF2B545PM?:display_count=y&:origin=viz_share_link&:embed=y),
-showing 8th, 10th, and 12th grade trends in past-30-day alcohol use and
-vaping, from 2016-2018.
-
-![Trend graphs](images/TableauTrends.png)
-
-I learned about [tidy
-eval](https://tidyeval.tidyverse.org/introduction.html) for this
-function - which allows me to pass column names into a
-function.
+Create a function to calculate and extract percentages by grade and
+year, for a specific indicator. Things I learned: \* [Tidy
+eval](https://tidyeval.tidyverse.org/introduction.html), which allows me
+to pass column names into a function. \* (didn’t end up using here): if
+you have a column name that starts with a number, you can refer to it by
+surrounding in backticks. \* `stop()` function for
+errors
 
 ``` r
 # NOTE: table must have columns called "year", "grade", "weight", and "variable"
@@ -741,7 +690,54 @@ get_percentage_by_grade_and_year = function(table = table, variable = variable) 
   
   percent_yes
 }
+```
 
+Print out the
+tables:
+
+``` r
+table1 = get_percentage_by_grade_and_year(table = all_three_grades_and_years, variable = "alc_drunk_lifetime") %>%
+                mutate(., change_2017_2018 = `2018` - `2017`)
+
+table2 = get_percentage_by_grade_and_year(table = all_three_grades_and_years, variable = "vape_ever") %>% 
+                mutate(., change_2017_2018 = `2018` - `2017`)
+
+knitr::kable(list(table1, table2),
+             digits = 1,
+             caption = "Lifetime prevalences of 'Been Drunk'(above) and 'Any Vaping'(below)",
+             valign = 't')
+```
+
+| grade | 2016 | 2017 | 2018 | change\_2017\_2018 |
+| :---- | ---: | ---: | ---: | -----------------: |
+| 8     |  8.6 |  9.2 |  9.2 |              \-0.1 |
+| 10    | 26.1 | 25.0 | 26.4 |                1.4 |
+| 12    | 46.0 | 45.7 | 43.0 |              \-2.7 |
+
+Lifetime prevalences of ‘Been Drunk’(above) and ‘Any Vaping’(below)
+
+| grade | 2016 | 2017 | 2018 | change\_2017\_2018 |
+| :---- | ---: | ---: | ---: | -----------------: |
+| 8     | 17.6 | 18.8 | 21.8 |                3.0 |
+| 10    | 29.1 | 30.9 | 37.4 |                6.4 |
+| 12    | 33.4 | 36.2 | 43.0 |                6.8 |
+
+Original: ![Table
+5](images/Table%205.png)
+
+# Goal \#2: Reproduce trend graphs from the [NIDA for Teens interactive chart](https://teens.drugabuse.gov/teachers/stats-and-trends-teen-drug-use)
+
+Specifically, I’d like to make [this
+view](https://public.tableau.com/shared/JF2B545PM?:display_count=y&:origin=viz_share_link&:embed=y),
+showing 8th, 10th, and 12th grade trends in past-30-day alcohol use and
+vaping, from 2016-2018.
+
+First, create two tables for past-month rates by grade and year: \*
+*NOTE:* I’m getting a warning about factors and implicit NA \<– worth
+learning about
+later
+
+``` r
 alcohol_past_month = get_percentage_by_grade_and_year(table = all_three_grades_and_years, variable = "alc_month")
 ```
 
@@ -775,50 +771,80 @@ knitr::kable(vape_past_month, digits = 1)
 | 10    | 11.0 | 13.0 | 21.5 |
 | 12    | 12.4 | 17.1 | 26.9 |
 
+Making the graphs\! Things I learned: \* It’s important to specify a
+group for ggplot, because whatever the default was (from the
+`group_by()`? no groups?) didn’t work, even if I’d specified splitting
+up by grade some other way, like with the color \* Different ggplot
+geometries correspond to continuous vs. discrete variable types. It
+seems like `geom_line()` and `geom_point()` both play nicely with a
+continuous `y` and a discrete `x` (which I bet is pretty common) \* It’s
+easier to do graphing if data is in a “tidy” format \* The `patchwork`
+library makes it easy to arrange multiple plots together \* *Note: I bet
+actually I should use faceting for this? And combine the data all into
+one tibble.* \* Question: how do I avoid getting the `a` labels in the
+legend?
+
 ``` r
-t = alcohol_past_month %>% 
-  ungroup(.) %>% 
-  pivot_longer(.,
+library(patchwork)
+
+# this function is (so far) only for the very specific purpose of taking a user-readable table of one variable (by grade and year) and converting it into a plot of that one variable over the years 2016-2018
+plot_by_grade = function(table = table, title = title, y_label = y_label) {
+  # tidy data by making it longer
+  data_to_plot = table %>% 
+    ungroup(.) %>% 
+    pivot_longer(.,
                  cols = `2016`:`2018`,
                  names_to = "year",
                  values_to = "percent")
+  
+  # create a plot
+  plot = ggplot(data_to_plot,
+                aes(x = year, y = percent, group = grade, color = grade)
+  ) +
+    geom_line() +
+    geom_point() +
+    labs(
+      title = title,
+      x = "Year",
+      y = y_label
+    ) +
+    geom_text(label = round(data_to_plot$percent, 1), nudge_x = -.2, nudge_y = .5) +
+    scale_y_continuous(limits = c(5, 35)) + 
+    theme(legend.position = "bottom")
+  
+  plot
+}
 
-t
-```
-
-    ## # A tibble: 9 x 3
-    ##   grade year  percent
-    ##   <fct> <chr>   <dbl>
-    ## 1 8     2016     7.21
-    ## 2 8     2017     7.97
-    ## 3 8     2018     8.13
-    ## 4 10    2016    20.0 
-    ## 5 10    2017    19.6 
-    ## 6 10    2018    18.7 
-    ## 7 12    2016    33.1 
-    ## 8 12    2017    33.5 
-    ## 9 12    2018    30.4
-
-``` r
-ggplot(t, aes(x = year, y = percent, group = grade, color = grade)) +
-  geom_line() + geom_point()
+plot_by_grade(table = alcohol_past_month,
+              title = "Alcohol: past month",
+              y_label = "Average percent useage per grade") +
+  plot_by_grade(table = vape_past_month,
+                title = "Any Vaping: past month",
+                y_label = "Average percent useage per grade") 
 ```
 
 ![](Getting-started-markdown_files/figure-gfm/past_month_by_grade-1.png)<!-- -->
 
-# Goal \#3: Use information from across multiple forms
-
-???
+Original: ![Trend graphs](images/TableauTrends.png)
 
 # Questions:
 
   - What should I do about the weights?
+      - *Is it correct to just be including it as a weight in R’s count
+        function?*
   - Should I include missing data in the denominator for prevalences?
+      - *If I’m just matching other people’s data, it seems like all NAs
+        should get thrown out. Is there some systematic way to
+        understand (maybe from the codebook?) when this is appropriate
+        and when it isn’t?*
   - How should I weight something if I’m trying to combine 8th, 10th,
-    and 12th grades?
-  - For a question like *V2566: BY18 34230 EVER VAPE (p. 56, 12th
-    grade)*, what does 70% missing mean? were some large amount of
-    participants not asked?
+    and 12th grades? (like
+    [Table 1](http://www.monitoringthefuture.org//pubs/monographs/mtf-overview2018.pdf#page=59&zoom=100,0,0)
+    from the report))
+  - For a question like *V2566: BY18 34230 EVER VAPE (2018 codebook,
+    p. 56, 12th grade)*, what does 70% missing mean? Were some large
+    amount of participants not asked?
   - In SAS, I do `proc freq` a ton, just to check up on how my data
     manipulation is going, and catch any surprises. What’s the
     corresponding workflow in R?
+      - I’ve been using `summary()` but I’m not in love yet
